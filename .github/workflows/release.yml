@@ -1,13 +1,7 @@
 name: release
 on:
   # 手动构建
-  workflow_dispatch: 
-    inputs:
-        version_name:
-          description: '版本号'
-          required: false
-          type: string
-
+  workflow_dispatch:
 env:
   API_WORKING_DIR: campus-modular
   WEB_WORKING_DIR: vue_campus_admin
@@ -25,6 +19,13 @@ jobs:
     strategy:
       matrix:
         node-version: [16.x]
+        java:
+          - 11
+          - 16
+          - 17
+          - 21
+          - 25
+      fail-fast: false
 
     steps:
       - name: Checkout 🛎️
@@ -32,9 +33,9 @@ jobs:
 
       #--------------------构建jar--------------------
       - name: Set up JDK 8
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v5
         with:
-          java-version: '8'
+          java-version: '${{ matrix.java }}'
           distribution: 'temurin'
           cache: maven
 
@@ -51,7 +52,7 @@ jobs:
             # 获取maven项目里的版本号
             echo "RELEASE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
           fi
-          
+
       - name: Remane jar
         working-directory: ${{ env.API_WORKING_DIR }}
         run: |
@@ -73,7 +74,7 @@ jobs:
 
       - name: Install 🔧
         working-directory: ${{ env.WEB_WORKING_DIR }}
-        if: steps.cache.outputs.cache-hit != 'true'
+        if: always()
         run: npm install
 
       - name: Build 🔧
@@ -86,7 +87,7 @@ jobs:
         run: |
           tar -czvf dist_${{ env.RELEASE_VERSION }}.tar.gz dist
 
-      
+
       # 上传文件并发布 Release
       - name: Create GitHub release
         uses: marvinpinto/action-automatic-releases@latest
