@@ -26,10 +26,6 @@ jobs:
         - 17
         - 21
         - 25
-        exclude:
-          # JDK 25 EA is not yet supported by the annotation processors and
-          # bytecode libraries used in this project (ASM, MapStruct, MyBatis-Plus).
-          - java: 25
       fail-fast: false
 
     steps:
@@ -51,7 +47,7 @@ jobs:
       # 设置 Maven pom 版本环境变量
     - name: Set Release version env variable
       run: |
-        if [ "${{ github.event.inputs.version_name }}" != "" ]; then
+        if [ ${{ github.event.inputs.version_name }} != "" ]; then
           echo "RELEASE_VERSION=${{ github.event.inputs.version_name }}" >> $GITHUB_ENV
         else
           # 获取maven项目里的版本号

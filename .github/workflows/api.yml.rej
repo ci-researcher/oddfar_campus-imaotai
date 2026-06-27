@@ -1,0 +1,16 @@
+@@ -53,4 +53,13 @@
+ 
+     - name: Build with Maven
+       working-directory: ./
+-      run: mvn -B package -P prod  --file pom.xml
++      run: |
++        JAVA_VER="${{ matrix.java }}"
++        if [ "$JAVA_VER" -ge 21 ] 2>/dev/null; then
++          mvn -B package -P prod --file pom.xml \
++            -Dmaven.compiler.source=11 \
++            -Dmaven.compiler.target=11 \
++            -Dmaven.compiler.release=11
++        else
++          mvn -B package -P prod --file pom.xml
++        fi
+\ No newline at end of line
