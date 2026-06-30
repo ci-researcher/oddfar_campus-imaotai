@@ -6,6 +6,7 @@ env:
   API_WORKING_DIR: campus-modular
   WEB_WORKING_DIR: vue_campus_admin
 
+  _JAVA_OPTIONS: --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED --add-opens java.base/java.lang.invoke=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/java.text=ALL-UNNAMED --add-opens java.base/java.math=ALL-UNNAMED --add-opens java.base/java.time=ALL-UNNAMED --add-opens java.xml/jdk.xml.internal=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.jvm=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -20,82 +21,82 @@ jobs:
       matrix:
         node-version: [16.x]
         java:
-          - 11
-          - 16
-          - 17
-          - 21
-          - 25
+        - 11
+        - 16
+        - 17
+        - 21
+        - 25
       fail-fast: false
 
     steps:
-      - name: Checkout 🛎️
-        uses: actions/checkout@v3
+    - name: Checkout 🛎️
+      uses: actions/checkout@v3
 
       #--------------------构建jar--------------------
-      - name: Set up JDK 8
-        uses: actions/setup-java@v5
-        with:
-          java-version: '${{ matrix.java }}'
-          distribution: 'temurin'
-          cache: maven
+    - name: Set up JDK 8
+      uses: actions/setup-java@v5
+      with:
+        java-version: '${{ matrix.java }}'
+        distribution: 'temurin'
+        cache: maven
 
-      - name: Build with Maven
-        working-directory: ./
-        run: mvn -B package -P prod  --file pom.xml
+    - name: Build with Maven
+      working-directory: ./
+      run: mvn -B package -P prod  --file pom.xml
 
       # 设置 Maven pom 版本环境变量
-      - name: Set Release version env variable
-        run: |
-          if [ ${{ github.event.inputs.version_name }} != "" ]; then
-            echo "RELEASE_VERSION=${{ github.event.inputs.version_name }}" >> $GITHUB_ENV
-          else
-            # 获取maven项目里的版本号
-            echo "RELEASE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
-          fi
+    - name: Set Release version env variable
+      run: |
+        if [ ${{ github.event.inputs.version_name }} != "" ]; then
+          echo "RELEASE_VERSION=${{ github.event.inputs.version_name }}" >> $GITHUB_ENV
+        else
+          # 获取maven项目里的版本号
+          echo "RELEASE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
+        fi
 
-      - name: Remane jar
-        working-directory: ${{ env.API_WORKING_DIR }}
-        run: |
-          cd target
-          # rename 's/(.*)\.jar/$1_${{ env.RELEASE_VERSION }}.jar/' *.jar
-          for file in *.jar; do mv "$file" "${file%.jar}_${{ env.RELEASE_VERSION }}.jar"; done
+    - name: Remane jar
+      working-directory: ${{ env.API_WORKING_DIR }}
+      run: |
+        cd target
+        # rename 's/(.*)\.jar/$1_${{ env.RELEASE_VERSION }}.jar/' *.jar
+        for file in *.jar; do mv "$file" "${file%.jar}_${{ env.RELEASE_VERSION }}.jar"; done
       #--------------------构建前端--------------------
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ matrix.node-version }}
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
 
-      - name: Cache ☕
-        id: cache
-        uses: actions/cache@v3
-        with:
-          path: vue_campus_admin/node_modules
-          key: ${{runner.os}}-npm-caches-${{ hashfiles('package-lock.json') }}
+    - name: Cache ☕
+      id: cache
+      uses: actions/cache@v3
+      with:
+        path: vue_campus_admin/node_modules
+        key: ${{runner.os}}-npm-caches-${{ hashfiles('package-lock.json') }}
 
-      - name: Install 🔧
-        working-directory: ${{ env.WEB_WORKING_DIR }}
-        if: always()
-        run: npm install
+    - name: Install 🔧
+      working-directory: ${{ env.WEB_WORKING_DIR }}
+      if: always()
+      run: npm install
 
-      - name: Build 🔧
-        working-directory: ${{ env.WEB_WORKING_DIR }}
-        run: |
-          npm run build:prod
+    - name: Build 🔧
+      working-directory: ${{ env.WEB_WORKING_DIR }}
+      run: |
+        npm run build:prod
 
-      - name: Tar dist file
-        working-directory: ${{ env.WEB_WORKING_DIR }}
-        run: |
-          tar -czvf dist_${{ env.RELEASE_VERSION }}.tar.gz dist
+    - name: Tar dist file
+      working-directory: ${{ env.WEB_WORKING_DIR }}
+      run: |
+        tar -czvf dist_${{ env.RELEASE_VERSION }}.tar.gz dist
 
 
       # 上传文件并发布 Release
-      - name: Create GitHub release
-        uses: marvinpinto/action-automatic-releases@latest
-        with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "v${{ env.RELEASE_VERSION }}"
-          prerelease: false
-          title: "v${{ env.RELEASE_VERSION }}"
-          files: |
-            ${{ env.API_WORKING_DIR }}/target/*.jar
-            ${{ env.WEB_WORKING_DIR }}/dist_*.tar.gz
+    - name: Create GitHub release
+      uses: marvinpinto/action-automatic-releases@latest
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "v${{ env.RELEASE_VERSION }}"
+        prerelease: false
+        title: "v${{ env.RELEASE_VERSION }}"
+        files: |
+          ${{ env.API_WORKING_DIR }}/target/*.jar
+          ${{ env.WEB_WORKING_DIR }}/dist_*.tar.gz
